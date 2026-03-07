@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset 
 
 from sklearn.cluster import KMeans
-from sklearn.neighbors import NearestNeighbours
+from sklearn.neighbors import NearestNeighbors
 
 from typing import List, Tuple 
  
@@ -41,6 +41,9 @@ class ResNetEncd(nn.Module):
     def represent(self, x):
         return self.forward(x, return_projection=False)
 
+
+
+
 class ConstructiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
         super().__init__()
@@ -62,6 +65,28 @@ class ConstructiveNTXent(nn.Module):
 
         loss = F.cross_entropy(sim_matrix, labels)
         return loss 
+
+# VVVVV Augmentation of data Below VVVVV
+
+# 2-Crop Transformation
+class TC_Transform:
+    def __init__(self):
+        self.aug = transforms.Compose([
+            transforms.RandomResizedCrop(32, scale=(0.2,1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
+            transforms.RandomGrayscale(p=0.2),
+            transforms=ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2470, 0.2435, 0.2616)),
+        ])
+    
+    
+    def __call__(self, img):
+        return self.aug(img), self.aug(img)
+
+
+
 
 def run_pipeline():
     encoder = None 
