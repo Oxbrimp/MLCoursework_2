@@ -44,7 +44,24 @@ class ResNetEncd(nn.Module):
 class ConstructiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
         super().__init__()
-        self.temperature = temperature 
+        self.temperature = temperature
+
+    def forward_pass(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensro:
+
+        batch = z_a.size(0)
+        z = torch.cat([z_a, z_b], dim=0)
+
+        sim_matrix = torch.matmul(z, z.T) / self.temperature
+
+        diag_mask = torch.eye(2 * batch ,  device=z.device).bool()
+
+        sim_matrix.masked_fill_(diag_mask, -9e15)
+
+        positives = torch.arrange(batch, 2 * batch, device = z.device)
+        labels = positives.repeat(2) # Cross-entropy target to be satisfied 
+
+        loss = F.cross_entropy(sim_matrix, labels)
+        return loss 
 
 def run_pipeline():
     encoder = None 
