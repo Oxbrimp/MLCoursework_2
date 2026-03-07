@@ -13,7 +13,7 @@ from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbours
 
 from typing import List, Tuple 
-
+ 
 
 class ResNetEncd(nn.Module):
     def __init__(self, base="resnet18", proj_dim=128):
@@ -38,12 +38,15 @@ class ResNetEncd(nn.Module):
             return feat, proj
         return feat 
     
-    def represet(self, x):
+    def represent(self, x):
         return self.forward(x, return_projection=False)
 
+class ConstructiveNTXent(nn.Module):
+    def __init__(self, temperature: float = 0.2):
+        super().__init__()
+        self.temperature = temperature 
 
-
-def run_pipelin():
+def run_pipeline():
     encoder = None 
 
     os.makedirs("results", exist_ok=True)
