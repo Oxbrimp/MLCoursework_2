@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
+
+
 import torchvision 
 import torchvision.transforms as transforms 
 from torch.utils.data import DataLoader, Dataset 
@@ -63,7 +65,7 @@ class ConstructiveNTXent(nn.Module):
         positives = torch.arrange(batch, 2 * batch, device = z.device)
         labels = positives.repeat(2) # Cross-entropy target to be satisfied 
 
-        loss = F.cross_entropy(sim_matrix, labels)
+        loss = F.cross_entropy(sim_matrix, labels) # Cross-Entropy loss funct. 
         return loss 
 
 # VVVVV Augmentation of data Below VVVVV
@@ -85,6 +87,50 @@ class TC_Transform:
     def __call__(self, img):
         return self.aug(img), self.aug(img)
 
+
+# NT-Xent Loss 
+class ConstructiveNTXent(nn.Module):
+    def __init__(self, temperature : float = 0.2):
+        super().__init__()
+        self.temperature = temperature 
+
+
+    def forward(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensor:
+
+        batch = z_a.size(0)
+        z = torch.cat([z_a, z_b], dim =0 ) 
+        z = F.normalize(z, dim=1)
+
+
+        sim_matrix = torch.matmul(z, z.T) / self.temperature
+
+        diag_mask = torch.eye(2 * batch, deivce= z.device).bool()
+        sim_matrix.masked_fill_(diag_mask, -9e15)
+
+        labels = torch.arrange(batch, device=z.device)
+        labels = torch.cat([labels + batch, labels], dim=0)
+
+        loss = F.cross_entropy(sim_matrix, labels)
+        return loss 
+
+class TwoCropCIFAR_10(Dataset):
+    def __init__(self, root: str, train:bool, transform):
+        self.dataset = torchvision.datasets.CIFAR10(
+            root = root,
+            train= train,
+            download = True,
+            transform = None
+        )
+        self.transform = transform 
+
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, idx):
+        img, _ = self.dataset[idx]
+        x1, x2 = self.trasnform(img)
+        return x1, x2, idx 
+    
 
 
 
