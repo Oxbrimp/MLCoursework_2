@@ -78,7 +78,7 @@ class TC_Transform:
             transforms.RandomHorizontalFlip(),
             transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
             transforms.RandomGrayscale(p=0.2),
-            transforms=ToTensor(),
+            transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465),
                                  (0.2470, 0.2435, 0.2616)),
         ])
@@ -113,6 +113,46 @@ class ConstructiveNTXent(nn.Module):
         loss = F.cross_entropy(sim_matrix, labels)
         return loss 
 
+
+def compute_typicality(features: np.ndarray, k: int = 20) -> np.ndarray:
+
+    nbrs = NearestNeighbors(n_neighbors=min(k + 1, len(features)), algorithm='auto').fit(features)
+    distances, indices = nbrs.kneighbors(features)  # distances: [N, k+1]
+    distances = distances[:, 1:]
+    avg_sq_dist = (distances ** 2).mean(axis=1)
+    typicality = 1.0 / (avg_sq_dist + 1e-12)
+    return typicality
+
+
+def typiclust_initial_pool(
+    features: np.ndarray,
+    budget: int,
+    k_typicality: int = 20,
+    random_state: int = 0
+) -> List[int]:
+    
+    n_samples = features.shape[0]
+    n_clusters = budget
+
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
+    cluster_labels = kmeans.fit_predict(features)
+
+    typicality = compute_typicality(features, k=k_typicality)
+
+    selected_indices = []
+    for c in range(n_clusters):
+        cluster_idx = np.where(cluster_labels == c)[0]
+        if len(cluster_idx) == 0:
+            continue
+        cluster_typ = typicality[cluster_idx]
+        best_local = cluster_idx[np.argmax(cluster_typ)]
+        selected_indices.append(int(best_local))
+
+    return selected_indices
+
+
+
+
 class TwoCropCIFAR_10(Dataset):
     def __init__(self, root: str, train:bool, transform):
         self.dataset = torchvision.datasets.CIFAR10(
@@ -131,6 +171,14 @@ class TwoCropCIFAR_10(Dataset):
         x1, x2 = self.trasnform(img)
         return x1, x2, idx 
     
+
+
+def train_self_supervised(
+        encoder: ResNetEncd
+        dataset : torchvision.datasets.CIFAR10,
+        device : torch.device,
+        batch_size : int = 256
+):
 
 
 
