@@ -179,11 +179,49 @@ class TwoCropCIFAR_10(Dataset):
 
 
 def train_self_supervised(
-        encoder: ResNetEncd
-        dataset : torchvision.datasets.CIFAR10,
-        device : torch.device,
-        batch_size : int = 256
-):
+    encoder : ResNetEncd,
+    dataset: Dataset,
+    device: torch.device,
+    batch_size: int = 256,
+    epochs: int = 200,
+    lr: float = 1e-3
+) -> ResNetEncd:
+    loader = DataLoader(
+        dataset,   # TO DO - ADD DATASET & BATCH_SIZE integration 
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        drop_last=True
+    )
+
+
+    encoder = encoder.to(device)
+    loss_fn = ContrastiveNTXent(temperature=0.2).to(device)
+    optimizer = torch.optim.Adam(encoder.parameter(), lr=lr)
+
+    encoder.train()
+    for epoch in range(epochs):
+        running_loss = 0.0
+        for x1, x2, _ in loader:
+            x1= x1.to(device)
+            x2 = x2.to(device)
+
+            _, z1 = encoder(x1, return_projection=True)
+
+            _, z2 = encoder(x2, return_projection=True)
+
+            loss = loss_fn(z1,z2)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item() * x1.size(0)
+
+        epoch_loss = running_loss / len(loader.dataset)
+        print(f"Epoch {epoch+1}/{epochs} - SSL LOSS : {epoch_loss:.4f}")
+
+    return encoder 
+
 
 
 
