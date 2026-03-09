@@ -55,7 +55,6 @@ class ConstructiveNTXent(nn.Module):
 
         batch = z_a.size(0)
         z = torch.cat([z_a, z_b], dim=0)
-        z = F.normalize(z, dim=1)
 
         sim_matrix = torch.matmul(z, z.T) / self.temperature
 
@@ -63,13 +62,39 @@ class ConstructiveNTXent(nn.Module):
 
         sim_matrix.masked_fill_(diag_mask, -9e15)
 
-        #positives = torch.arrange(batch, 2 * batch, device = z.device)
-        labels = torch.arange(batch, device=z.device)
-        #labels = positives.repeat(2) # Cross-entropy target to be satisfied 
-        labels = torch.cat([labels + batch, labels], dim = 0)
+        positives = torch.arrange(batch, 2 * batch, device = z.device)
+        labels = positives.repeat(2) # Cross-entropy target to be satisfied 
 
         loss = F.cross_entropy(sim_matrix, labels) # Cross-Entropy loss funct. 
         return loss 
+
+
+# NT-Xent Loss  - CONSTRASTIVE NTXent 
+class ContrastiveNTXent(nn.Module):
+    def __init__(self, temperature : float = 0.2):
+        super().__init__()
+        self.temperature = temperature 
+
+
+    def forward(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensor:
+
+        batch = z_a.size(0)
+        z = torch.cat([z_a, z_b], dim =0 ) 
+        z = F.normalize(z, dim=1)
+
+
+        sim_matrix = torch.matmul(z, z.T) / self.temperature
+
+        diag_mask = torch.eye(2 * batch, device= z.device).bool() 
+        sim_matrix.masked_fill_(diag_mask, -9e15)
+
+        labels = torch.arange(batch, device=z.device) # 1D-tensor
+        labels = torch.cat([labels + batch, labels], dim=0)
+
+        loss = F.cross_entropy(sim_matrix, labels)
+        return loss 
+
+
 
 # VVVVV Augmentation of data Below VVVVV
 
@@ -91,36 +116,13 @@ class TC_Transform:
         return self.aug(img), self.aug(img)
 
 
-# NT-Xent Loss 
-class ContrastiveNTXent(nn.Module):
-    def __init__(self, temperature : float = 0.2):
-        super().__init__()
-        self.temperature = temperature 
 
-
-    def forward(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensor:
-
-        batch = z_a.size(0)
-        z = torch.cat([z_a, z_b], dim =0 ) 
-        z = F.normalize(z, dim=1)
-
-
-        sim_matrix = torch.matmul(z, z.T) / self.temperature
-
-        diag_mask = torch.eye(2 * batch, deivce= z.device).bool()
-        sim_matrix.masked_fill_(diag_mask, -9e15)
-
-        labels = torch.arrange(batch, device=z.device)
-        labels = torch.cat([labels + batch, labels], dim=0)
-
-        loss = F.cross_entropy(sim_matrix, labels)
-        return loss 
 
 
 def compute_typicality(features: np.ndarray, k: int = 20) -> np.ndarray:
 
     nbrs = NearestNeighbors(n_neighbors=min(k + 1, len(features)), algorithm='auto').fit(features)
-    distances, indices = nbrs.kneighbors(features)  # distances: [N, k+1]
+    distances, _ = nbrs.kneighbors(features)  # distances: [N, k+1]
     distances = distances[:, 1:]
     avg_sq_dist = (distances ** 2).mean(axis=1)
     typicality = 1.0 / (avg_sq_dist + 1e-12)
@@ -171,7 +173,7 @@ class TwoCropCIFAR_10(Dataset):
     
     def __getitem__(self, idx):
         img, _ = self.dataset[idx]
-        x1, x2 = self.trasnform(img)
+        x1, x2 = self.transform(img)
         return x1, x2, idx 
     
 
