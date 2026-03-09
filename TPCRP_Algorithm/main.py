@@ -27,7 +27,7 @@ class ResNetEncd(nn.Module):
 
         self.projection = nn.Sequential(
             nn.Linear(feat_dim, feat_dim),
-            nn.ReLu(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Linear(feat_dim, proj_dim)
         )
 
@@ -55,6 +55,7 @@ class ConstructiveNTXent(nn.Module):
 
         batch = z_a.size(0)
         z = torch.cat([z_a, z_b], dim=0)
+        z = F.normalize(z, dim=1)
 
         sim_matrix = torch.matmul(z, z.T) / self.temperature
 
@@ -62,8 +63,10 @@ class ConstructiveNTXent(nn.Module):
 
         sim_matrix.masked_fill_(diag_mask, -9e15)
 
-        positives = torch.arrange(batch, 2 * batch, device = z.device)
-        labels = positives.repeat(2) # Cross-entropy target to be satisfied 
+        #positives = torch.arrange(batch, 2 * batch, device = z.device)
+        labels = torch.arange(batch, device=z.device)
+        #labels = positives.repeat(2) # Cross-entropy target to be satisfied 
+        labels = torch.cat([labels + batch, labels], dim = 0)
 
         loss = F.cross_entropy(sim_matrix, labels) # Cross-Entropy loss funct. 
         return loss 
@@ -89,7 +92,7 @@ class TC_Transform:
 
 
 # NT-Xent Loss 
-class ConstructiveNTXent(nn.Module):
+class ContrastiveNTXent(nn.Module):
     def __init__(self, temperature : float = 0.2):
         super().__init__()
         self.temperature = temperature 
