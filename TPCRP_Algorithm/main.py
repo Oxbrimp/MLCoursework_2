@@ -225,6 +225,35 @@ def train_self_supervised(
 
 
 
+# Extraction of Features
+def extract_features(
+        encoder : ResNetEncd,
+        dataset : torchvision.datasets.CIFAR10,
+        device : torch.device,
+        batch_size : int = 256
+) -> np.ndarray:
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers =4 
+    )
+
+    encoder.eval()
+    all_features = []
+
+    with torch.no_grad():
+        for x, _ in loader:
+            x = x.to(device)
+            features = encoder.represent(x) 
+            all_features.append(features.cpu().numpy())
+
+    features = np.concatenate(all_features, axis=0)
+    return features 
+
+
+
+
 def run_pipeline():
     encoder = None 
 
