@@ -17,6 +17,11 @@ from sklearn.neighbors import NearestNeighbors
 from typing import List, Tuple 
  
 
+# Reproducibility 
+torch.manual_seed(0)
+np.random.seed(0)
+
+
 class ResNetEncd(nn.Module):
     def __init__(self, base="resnet18", proj_dim=128):
         super().__init__()
@@ -36,7 +41,6 @@ class ResNetEncd(nn.Module):
         feat = torch.flatten(feat, 1)
         if return_projection:
             proj = self.projection(feat)
-            proj = F.normalize(proj, dim =1)
             return feat, proj
         return feat 
     
@@ -51,7 +55,7 @@ class ConstructiveNTXent(nn.Module):
         super().__init__()
         self.temperature = temperature
 
-    def forward_pass(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensro:
+    def forward_pass(self, z_a: torch.Tensor, z_b : torch.Tensor) -> torch.Tensor:
 
         batch = z_a.size(0)
         z = torch.cat([z_a, z_b], dim=0)
@@ -62,7 +66,7 @@ class ConstructiveNTXent(nn.Module):
 
         sim_matrix.masked_fill_(diag_mask, -9e15)
 
-        positives = torch.arrange(batch, 2 * batch, device = z.device)
+        positives = torch.arange(batch, 2 * batch, device = z.device)
         labels = positives.repeat(2) # Cross-entropy target to be satisfied 
 
         loss = F.cross_entropy(sim_matrix, labels) # Cross-Entropy loss funct. 
@@ -197,7 +201,7 @@ def train_self_supervised(
 
     encoder = encoder.to(device)
     loss_fn = ContrastiveNTXent(temperature=0.2).to(device)
-    optimizer = torch.optim.Adam(encoder.parameter(), lr=lr)
+    optimizer = torch.optim.Adam(encoder.parameters(), lr=lr)
 
     encoder.train()
     for epoch in range(epochs):
@@ -323,4 +327,6 @@ def run_pipeline(
 
 
 if __name__ == '__main__':
-    run_pipeline() # Run pipeline()
+
+    # DEV NOTE : UP THE EPOCHS AFTER TESTING 
+    run_pipeline(ssL_epochs=10) # Run pipeline()
