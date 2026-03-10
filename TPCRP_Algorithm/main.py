@@ -254,14 +254,73 @@ def extract_features(
 
 
 
-def run_pipeline():
-    encoder = None 
+def run_pipeline(
+    data_root : str = "./data", # data folder for data root location 
+    budget : int = 30,
+    ssl_epochs : int = 200
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+    # CIFAR-10 Two-Crop SSL
+    ssl_transform = TC_Transform()
+    ssl_dataset = TwoCropCIFAR_10(
+        root= data_root,
+        train=True,
+        transform=ssl_transform
+    )
+
+
+    # Self-Supervised Encoder 
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder = train_self_supervised(
+        encoder = encoder,
+        dataset=ssl_dataset,
+        device=device,
+        batch_size=256,
+        epochs=ssl_epochs,
+        lr=1e-3
+    )
+
+    # CIFAR -10 Feature Extraction 
+    base_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            (0.4914, 0.4822, 0.4465),
+            (0.2470, 0.2435, 0.2616)
+        ),
+    ])
+
+    base_dataset = torchvision.datasets.CIFAR10(
+        root=data_root,
+        train=True,
+        download=True,
+        transform=base_transform
+    )
+
+    # Feat. Extraction
+    features = extract_features(
+        encoder=encoder,
+        dataset=base_dataset,
+        device=device,
+        batch_size=256
+    )
+
+
+    # TypiClust Pool Select
+    selected_indices = typiclust_initial_pool(
+        features=features,
+        budget=budget,
+        k_typicality=20,
+        random_state=0
+    )
 
     os.makedirs("results", exist_ok=True)
-    np.save("results/......") # adjust 
-    print(f"Saved ::: Name ") # adjust 
-    return None 
+    np.save("results/typiclust.npy", np.array(selected_indices))
+    print(f"Saved { len(selected_indices)} to results/typiclust.npy")
+    
+    return selected_indices
 
 
 if __name__ == '__main__':
-    pass # Run pipeline()
+    run_pipeline() # Run pipeline()
