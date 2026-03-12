@@ -257,7 +257,7 @@ def extract_features(
 
 
 
-
+# SSL = Self Supervised Learning 
 def run_pipeline(
     data_root : str = "./data", # data folder for data root location 
     budget : int = 30,
@@ -329,4 +329,4 @@ def run_pipeline(
 if __name__ == '__main__':
 
     # DEV NOTE : UP THE EPOCHS AFTER TESTING 
-    run_pipeline(ssL_epochs=10) # Run pipeline()
+    run_pipeline(ssl_epochs=10) # Run pipeline()
