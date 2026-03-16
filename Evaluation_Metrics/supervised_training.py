@@ -121,6 +121,28 @@ def train_supervised(
     runtime = time.time() - start_time 
 
 
+    model.eval()
+    correct = 0
+    total = 0
+
+
+    with torch.no_grad():
+        for x, y in test_loader:
+            x,y = x.to(device), y.to(device)
+            logits = model(x)
+
+            preds = logits.argmax(dim=1)
+            correct += (preds==y).sum().item()
+            total += y.size(0)
+
+    accuracy = correct / total 
+    print(f"Fin. Test Accuracy : {accuracy:.3f}")
+    print(f"Training time elapsed : {runtime:.2f} seconds")
+
+
+    return accuracy, loss_curve, runtime 
+
+
 
 
 
