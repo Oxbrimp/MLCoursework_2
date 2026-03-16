@@ -89,5 +89,38 @@ def train_supervised(
 
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_max=epochs)
 
-    
+    loss_curve = [] # Empty at initalisation 
+    start_time = time.time() # To measure time elapsed 
+
+    for epoch in range(epochs):
+        model.train()
+        running_loss =0.0
+
+        for x,y in train_loader:
+            x,y = x.to(device), y.to(device)
+
+            optimizer.zero_grad()
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+
+
+            running_loss += loss.item() * x.size(0)
+
+
+        scheduler.step()
+
+        epoch_loss = running_loss / len(train_loader.dataset)
+        loss_curve.append(epoch_loss)
+
+        print(f" Epoch {epoch+1}/{epochs} :::  Loss { epoch_loss:.4f}")
+
+    # Total time elapsed
+    # I kept this for convenience as an additional feature to include in the report 
+    runtime = time.time() - start_time 
+
+
+
+
 
