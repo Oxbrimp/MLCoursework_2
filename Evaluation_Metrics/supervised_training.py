@@ -9,6 +9,12 @@ from torch.utils.data import Dataset, DataLoader, Subset
 
 
 
+##
+#
+#    SUPERVISED LEARNING MODULE 
+#
+##
+
 class CIFAR10Subset(Dataset):
     
 
@@ -28,7 +34,7 @@ class CIFAR10Subset(Dataset):
 def get_CIFAR10Loaders(selected_indices, batch_size=128):
     transforms_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorrizontalFlip(),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(
             (0.4914, 0.4822, 0.4465),
@@ -36,7 +42,7 @@ def get_CIFAR10Loaders(selected_indices, batch_size=128):
         ),
     ])
 
-    transform_test = transforms.Compoes([
+    transform_test = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(
             (0.4914, 0.4822, 0.4465),
@@ -47,8 +53,8 @@ def get_CIFAR10Loaders(selected_indices, batch_size=128):
     train_base = torchvision.datasets.CIFAR10(
         root="./data", train=True, download=True, transform=transforms_train
     )
-    test_set = torch.vision.datasets.CIFAR10(
-        root="./data", train=True, download=True, transform=transform_test
+    test_set = torchvision.datasets.CIFAR10(
+        root="./data", train=False, download=True, transform=transform_test
     )
 
     train_subset = CIFAR10Subset(train_base, selected_indices)
@@ -87,7 +93,7 @@ def train_supervised(
         weight_decay=weight_decay
     )
 
-    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_max=epochs)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     loss_curve = [] # Empty at initalisation 
     start_time = time.time() # To measure time elapsed 
