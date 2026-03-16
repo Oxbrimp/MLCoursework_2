@@ -4,3 +4,5 @@
 
 * Multi-Round TPCRP is done in "MultiRoundTPCRP.py" - following the intuition of the research paper
 * Single-Round TPRCRP is done in "SingleRoundTPCRP.py" - Used for simplicity and testing reasons 
+
+* Evaluation Metrics Directory : Contains diagram generation relevant to Task 2 
