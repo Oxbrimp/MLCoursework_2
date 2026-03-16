@@ -51,7 +51,43 @@ def get_CIFAR10Loaders(selected_indices, batch_size=128):
         root="./data", train=True, download=True, transform=transform_test
     )
 
+    train_subset = CIFAR10Subset(train_base, selected_indices)
+    train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=4)
+
+    return train_loader, test_loader 
+
 
 def build_resnet18():
-    pass 
+    model = torchvision.models.resnet18(weights=None)
+    model.fc == nn.Linear(model.fc.in_features,10)
+    return model 
+
+
+def train_supervised(
+        selected_indices,
+        epochs=100, # can be reduced due to training time concerns  
+        batch_size=128,
+        lr=0.1, # Learning rate 
+        momentum=0.9,
+        weight_decay=5e-4,
+        device=None
+):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    train_loader, test_loader = get_CIFAR10Loaders(selected_indices, batch_size=batch_size)
+
+    model = build_resnet18().to(device)
+    criterion = nn.CrossEntropyLoss() # Loss function for resnet18
+    optimizer = optim.SGD(
+        model.parameters(),
+        lr=lr,
+        momentum=momentum,
+        weight_decay=weight_decay
+    )
+
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_max=epochs)
+
+    
 
