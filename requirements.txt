@@ -3,3 +3,8 @@ torchvision
 scikit-learn
 numpy
 typing
+
+matplotlib
+seaborn
+pandas
+tqdm
