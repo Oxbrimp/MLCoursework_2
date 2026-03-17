@@ -49,6 +49,67 @@ class ResNetEncd(nn.Module):
 
 
 
+def generate_and_save_typiclust_selections(
+        budgets=[10,20,40,80],
+        batch_size_per_round=10,
+        ssl_epochs=200,
+        data_root="./data"
+
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    ssl_transform = TC_Transform()
+    ssl_dataset = TwoCropCIFAR_10(root=data_root, train=True, transform=ssl_transform)
+
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder = train_self_supervised(
+        encoder=encoder,
+        dataset=ssl_dataset,
+        device=device,
+        batch_size=256,
+        epochs=ssl_epochs,
+        lr=1e-3,
+    )
+
+    base_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            (0.4914, 0.4822, 0.4465),
+            (0.2470, 0.2435, 0.2616)
+        ),
+    ])
+    base_dataset = torchvision.datasets.CIFAR10(
+        root=data_root,
+        train=True,
+        download=True,
+        transform=base_transform
+    )
+
+    features = extract_features(
+        encoder=encoder,
+        dataset=base_dataset,
+        device=device,
+        batch_size=256
+    )
+
+    os.makedirs("results", exist_ok=True)
+
+    for B in budgets:
+        labeled_indices = typiclust_multiround(
+            features=features,
+            initial_labeled=[],
+            budget_total=B,
+            batch_size_per_round=batch_size_per_round,
+            k_typicality=20,
+            random_state=0,
+        )
+
+        np.save(f"results/typiclust_B{B}.npy", np.array(labeled_indices))
+        print(f"Saved TypiClust selection for B={B} → results/typiclust_B{B}.npy")
+
+
+
+
 
 class ConstructiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
@@ -351,4 +412,5 @@ def run_pipeline_multiround(
 
 if __name__ == '__main__':
 
-    run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
+    #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
+    generate_and_save_typiclust_selections(ssl_epochs=500)

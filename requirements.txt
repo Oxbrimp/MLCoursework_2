@@ -3,6 +3,8 @@ torchvision
 scikit-learn
 numpy
 typing
+os 
+
 
 matplotlib
 seaborn
