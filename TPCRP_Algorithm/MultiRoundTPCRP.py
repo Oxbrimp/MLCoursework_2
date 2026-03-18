@@ -225,7 +225,8 @@ def train_self_supervised(
     device: torch.device,
     batch_size: int = 256,
     epochs: int = 200,
-    lr: float = 1e-3
+    lr: float = 1e-3,
+    resume_path : str = None
 ) -> ResNetEncd:
     loader = DataLoader(
         dataset,   # TO DO - ADD DATASET & BATCH_SIZE integration 
@@ -241,6 +242,17 @@ def train_self_supervised(
     encoder = encoder.to(device)
     loss_fn = ContrastiveNTXent(temperature=0.2).to(device)
     optimizer = torch.optim.Adam(encoder.parameters(), lr=lr)
+
+
+    start_epoch = 0
+    if resume_path is not None and os.path.exists(resume_path):
+        print(f"Resuming SSL training from checkpoint: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device)
+        encoder.load_state_dict(checkpoint["encoder"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        start_epoch = checkpoint["epoch"] + 1
+        print(f"Resumed from epoch {start_epoch}")
+
 
     encoder.train()
     for epoch in range(epochs):
