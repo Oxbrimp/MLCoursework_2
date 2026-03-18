@@ -49,63 +49,7 @@ class ResNetEncd(nn.Module):
 
 
 
-def generate_and_save_typiclust_selections(
-        budgets=[10,20,40,80],
-        batch_size_per_round=10,
-        ssl_epochs=200,
-        data_root="./data"
 
-):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    ssl_transform = TC_Transform()
-    ssl_dataset = TwoCropCIFAR_10(root=data_root, train=True, transform=ssl_transform)
-
-    encoder = ResNetEncd(base="resnet18", proj_dim=128)
-    encoder = train_self_supervised(
-        encoder=encoder,
-        dataset=ssl_dataset,
-        device=device,
-        batch_size=256,
-        epochs=ssl_epochs,
-        lr=1e-3,
-    )
-
-    base_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(
-            (0.4914, 0.4822, 0.4465),
-            (0.2470, 0.2435, 0.2616)
-        ),
-    ])
-    base_dataset = torchvision.datasets.CIFAR10(
-        root=data_root,
-        train=True,
-        download=True,
-        transform=base_transform
-    )
-
-    features = extract_features(
-        encoder=encoder,
-        dataset=base_dataset,
-        device=device,
-        batch_size=256
-    )
-
-    os.makedirs("results", exist_ok=True)
-
-    for B in budgets:
-        labeled_indices = typiclust_multiround(
-            features=features,
-            initial_labeled=[],
-            budget_total=B,
-            batch_size_per_round=batch_size_per_round,
-            k_typicality=20,
-            random_state=0,
-        )
-
-        np.save(f"results/typiclust_B{B}.npy", np.array(labeled_indices))
-        print(f"Saved TypiClust selection for B={B} → results/typiclust_B{B}.npy")
 
 
 
@@ -291,6 +235,8 @@ def train_self_supervised(
         drop_last=True
     )
 
+    ssl_losses = []
+
 
     encoder = encoder.to(device)
     loss_fn = ContrastiveNTXent(temperature=0.2).to(device)
@@ -317,6 +263,16 @@ def train_self_supervised(
         epoch_loss = running_loss / len(loader.dataset)
         print(f"Epoch {epoch+1}/{epochs} - SSL LOSS : {epoch_loss:.4f}")
 
+        ssl_losses.append(epoch_loss)
+
+        # Checkpoint every 40 epochs
+        if (epoch+1)%40 == 0:
+            os.makedirs("results/ssl_checkpoints", exist_ok=True)
+            ckpt_path = f"results/ssl_checkpoints/ssl_epoch_{epoch+1}.pth"
+            torch.save(encoder.state_dict(), ckpt_path)
+            print(f"Checkpoint Saved [ CKLP ] at {epoch+1} -> {ckpt_path}")
+    
+    np.save("results/ssl_loss.npy", np.array(ssl_losses))
     return encoder 
 
 
@@ -410,7 +366,67 @@ def run_pipeline_multiround(
 
 
 
+
+def generate_and_save_typiclust_selections(
+        budgets=[10,20,40,80],
+        batch_size_per_round=10,
+        ssl_epochs=200,
+        data_root="./data"
+
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    ssl_transform = TC_Transform()
+    ssl_dataset = TwoCropCIFAR_10(root=data_root, train=True, transform=ssl_transform)
+
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder = train_self_supervised(
+        encoder=encoder,
+        dataset=ssl_dataset,
+        device=device,
+        batch_size=256,
+        epochs=ssl_epochs,
+        lr=1e-3,
+    )
+
+    base_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            (0.4914, 0.4822, 0.4465),
+            (0.2470, 0.2435, 0.2616)
+        ),
+    ])
+    base_dataset = torchvision.datasets.CIFAR10(
+        root=data_root,
+        train=True,
+        download=True,
+        transform=base_transform
+    )
+
+    features = extract_features(
+        encoder=encoder,
+        dataset=base_dataset,
+        device=device,
+        batch_size=256
+    )
+
+    os.makedirs("results", exist_ok=True)
+
+    for B in budgets:
+        labeled_indices = typiclust_multiround(
+            features=features,
+            initial_labeled=[],
+            budget_total=B,
+            batch_size_per_round=batch_size_per_round,
+            k_typicality=20,
+            random_state=0,
+        )
+
+        np.save(f"results/typiclust_B{B}.npy", np.array(labeled_indices))
+        print(f"Saved TypiClust selection for B={B} → results/typiclust_B{B}.npy")
+
+
 if __name__ == '__main__':
 
     #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
-    generate_and_save_typiclust_selections(ssl_epochs=200) # reduce due to time constraints 
+    generate_and_save_typiclust_selections(ssl_epochs=15) # reduce due to time constraints 

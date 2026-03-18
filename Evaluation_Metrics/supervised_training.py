@@ -1,5 +1,5 @@
 import time # To measure time elapsed 
-
+import os 
 import torch 
 import torch.nn as nn
 import torch.optim as optim 
@@ -31,8 +31,8 @@ class CIFAR10Subset(Dataset):
         return self.base[real_idx]
 
 
-def get_CIFAR10Loaders(selected_indices, batch_size=128):
-    transforms_train = transforms.Compose([
+def get_cifar10_loaders(selected_indices, batch_size=128):
+    transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
@@ -51,22 +51,25 @@ def get_CIFAR10Loaders(selected_indices, batch_size=128):
     ])
 
     train_base = torchvision.datasets.CIFAR10(
-        root="./data", train=True, download=True, transform=transforms_train
+        root="./data", train=True, download=False, transform=transform_train
     )
     test_set = torchvision.datasets.CIFAR10(
-        root="./data", train=False, download=True, transform=transform_test
+        root="./data", train=False, download=False, transform=transform_test
     )
 
     train_subset = CIFAR10Subset(train_base, selected_indices)
+
     train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    return train_loader, test_loader 
+    return train_loader, test_loader
+
+
 
 
 def build_resnet18():
     model = torchvision.models.resnet18(weights=None)
-    model.fc == nn.Linear(model.fc.in_features,10)
+    model.fc = nn.Linear(model.fc.in_features,10)
     return model 
 
 
@@ -82,7 +85,7 @@ def train_supervised(
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader, test_loader = get_CIFAR10Loaders(selected_indices, batch_size=batch_size)
+    train_loader, test_loader = get_cifar10_loaders(selected_indices, batch_size=batch_size)
 
     model = build_resnet18().to(device)
     criterion = nn.CrossEntropyLoss() # Loss function for resnet18
