@@ -413,4 +413,4 @@ def run_pipeline_multiround(
 if __name__ == '__main__':
 
     #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
-    generate_and_save_typiclust_selections(ssl_epochs=500)
+    generate_and_save_typiclust_selections(ssl_epochs=200) # reduce due to time constraints 
