@@ -15,6 +15,8 @@ from torch.utils.data import Dataset, DataLoader, Subset
 #
 ##
 
+os.makedirs("./data", exist_ok=True)
+
 class CIFAR10Subset(Dataset):
     
 
@@ -51,10 +53,10 @@ def get_cifar10_loaders(selected_indices, batch_size=128):
     ])
 
     train_base = torchvision.datasets.CIFAR10(
-        root="./data", train=True, download=False, transform=transform_train
+        root="./data", train=True, download=True, transform=transform_train
     )
     test_set = torchvision.datasets.CIFAR10(
-        root="./data", train=False, download=False, transform=transform_test
+        root="./data", train=False, download=True, transform=transform_test
     )
 
     train_subset = CIFAR10Subset(train_base, selected_indices)

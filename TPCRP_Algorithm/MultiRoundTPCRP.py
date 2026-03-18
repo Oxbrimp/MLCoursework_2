@@ -267,12 +267,12 @@ def train_self_supervised(
 
         # Checkpoint every 40 epochs
         if (epoch+1)%40 == 0:
-            os.makedirs("results/ssl_checkpoints", exist_ok=True)
-            ckpt_path = f"results/ssl_checkpoints/ssl_epoch_{epoch+1}.pth"
+            os.makedirs("budget_results/ssl_checkpoints", exist_ok=True)
+            ckpt_path = f"budget_results/ssl_checkpoints/ssl_epoch_{epoch+1}.pth"
             torch.save(encoder.state_dict(), ckpt_path)
             print(f"Checkpoint Saved [ CKLP ] at {epoch+1} -> {ckpt_path}")
     
-    np.save("results/ssl_loss.npy", np.array(ssl_losses))
+    np.save("budget_results/ssl_loss.npy", np.array(ssl_losses))
     return encoder 
 
 
@@ -358,8 +358,8 @@ def run_pipeline_multiround(
         random_state=0,
     )
 
-    os.makedirs("results", exist_ok=True)
-    np.save("results/typiclust_multiround.npy", np.array(labeled_indices))
+    os.makedirs("budget_results", exist_ok=True)
+    np.save("budget_results/typiclust_multiround.npy", np.array(labeled_indices))
     print(f"Selected {len(labeled_indices)} labeled points (multi-round)")
 
     return labeled_indices
@@ -410,7 +410,7 @@ def generate_and_save_typiclust_selections(
         batch_size=256
     )
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs("budget_results", exist_ok=True)
 
     for B in budgets:
         labeled_indices = typiclust_multiround(
@@ -422,11 +422,11 @@ def generate_and_save_typiclust_selections(
             random_state=0,
         )
 
-        np.save(f"results/typiclust_B{B}.npy", np.array(labeled_indices))
-        print(f"Saved TypiClust selection for B={B} → results/typiclust_B{B}.npy")
+        np.save(f"budget_results/typiclust_B{B}.npy", np.array(labeled_indices))
+        print(f"Saved TypiClust selection for B={B} → budget_results/typiclust_B{B}.npy")
 
 
 if __name__ == '__main__':
 
     #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
-    generate_and_save_typiclust_selections(ssl_epochs=15) # reduce due to time constraints 
+    generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
