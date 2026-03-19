@@ -1,5 +1,8 @@
 *env/
 *Unmodified_Output/
 *budget_results/
+*loss_curves*/
+*data*/
 
-*data/
+Evaluation_Metrics/data*/
+env/
