@@ -180,13 +180,13 @@ def typiclust_multiround(
     unique, counts = np.unique(cluster_labels, return_counts=True)
     n_noise = int(np.sum(cluster_labels == -1))
     n_clusters = int((unique != -1).sum())
-    print(f"[DBSCAN] clusters={n_clusters}, noise={n_noise}, total={len(cluster_labels)}")
+    print(f"[HDBSCAN] clusters={n_clusters}, noise={n_noise}, total={len(cluster_labels)}")
     print("Top cluster sizes:", sorted([(c, s) for c, s in zip(unique, counts) if c != -1], key=lambda x: -x[1])[:5])
 
-    # Save metadata for documentation
+    # Save metadata for documentation ( HDBSCAN )
     meta = {
-        "eps": 0.5,
-        "min_samples": 10,
+        "min_cluster_size": 30,
+        "min_samples": 5,
         "lambda": lambda_,
         "n_clusters": n_clusters,
         "n_noise": n_noise
@@ -216,7 +216,7 @@ def typiclust_multiround(
         unique_clusters = np.unique(cluster_labels[valid_mask])
 
         if unique_clusters.size == 0:
-            print("Warning: DBSCAN found no clusters (all points noise). Increase eps or reduce min_samples.")
+            print("Warning: HDBSCAN found no clusters (all points noise). Increase eps or reduce min_samples.")
             break
 
         cluster_has_label = {c: False for c in unique_clusters}
@@ -561,7 +561,7 @@ if __name__ == '__main__':
         features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
         checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
         budgets=[10,20,40,80],
-        eps=200.0,
+        #eps=200.0, # No longer needed for HDBSCAN
         lambda_=0.01
     )
 
