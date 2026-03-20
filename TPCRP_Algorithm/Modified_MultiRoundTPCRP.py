@@ -11,7 +11,6 @@ import torchvision
 import torchvision.transforms as transforms 
 from torch.utils.data import DataLoader, Dataset 
 
-#from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 
 from typing import List, Tuple 
@@ -24,7 +23,10 @@ from sklearn.cluster import DBSCAN
 torch.manual_seed(0)
 np.random.seed(0)
 
-
+## MODIFIED
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+## END OF MODIFICATION
 
 
 
@@ -165,6 +167,25 @@ def typiclust_multiround(
     db = DBSCAN(eps=0.5, min_samples=10).fit(features)
     cluster_labels = db.labels_
 
+    unique, counts = np.unique(cluster_labels, return_counts=True)
+    n_noise = int(np.sum(cluster_labels == -1))
+    n_clusters = int((unique != -1).sum())
+    print(f"[DBSCAN] clusters={n_clusters}, noise={n_noise}, total={len(cluster_labels)}")
+    print("Top cluster sizes:", sorted([(c, s) for c, s in zip(unique, counts) if c != -1], key=lambda x: -x[1])[:5])
+
+    # Save metadata for documentation
+    meta = {
+        "eps": 0.5,
+        "min_samples": 10,
+        "lambda": lambda_,
+        "n_clusters": n_clusters,
+        "n_noise": n_noise
+    }
+    os.makedirs("budget_results/meta", exist_ok=True)
+    np.save("budget_results/meta/dbscan_meta.npy", meta)
+
+
+
     ###  END OF MODIFICATION FROM ORIGINAL ###
 
     N = features.shape[0]
@@ -183,6 +204,11 @@ def typiclust_multiround(
 
         # clusters that DO  [ NOT ]  contain a labeled point
         unique_clusters = np.unique(cluster_labels[valid_mask])
+
+        if unique_clusters.size == 0:
+            print("Warning: DBSCAN found no clusters (all points noise). Increase eps or reduce min_samples.")
+            break
+
         cluster_has_label = {c: False for c in unique_clusters}
 
         for idx in labeled:
@@ -215,6 +241,8 @@ def typiclust_multiround(
 
         if not new_indices:
             break
+
+
 
     return sorted(labeled)
     ###  END OF MODIFICATIONS FROM ORIGINAL ###
@@ -474,6 +502,6 @@ def generate_and_save_typiclust_selections(
 
 
 if __name__ == '__main__':
-
+    #generate_and_save_typiclust_selections(budgets=[10], ssl_epochs=5) # For testing before committing to 500 epochs
     #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
     generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
