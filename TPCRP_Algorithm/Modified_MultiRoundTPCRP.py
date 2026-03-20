@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 import torchvision 
 import torchvision.transforms as transforms 
+
 from torch.utils.data import DataLoader, Dataset 
 
 from sklearn.neighbors import NearestNeighbors
@@ -16,8 +17,8 @@ from sklearn.neighbors import NearestNeighbors
 from typing import List, Tuple 
 
 
-from sklearn.cluster import DBSCAN
- 
+#from sklearn.cluster import DBSCAN
+import hdbscan
 
 # Reproducibility 
 torch.manual_seed(0)
@@ -164,8 +165,17 @@ def typiclust_multiround(
     lambda_ = 0.01
 
     # DBSCAN Parameters         
-    db = DBSCAN(eps=1.2, min_samples=10).fit(features)
-    cluster_labels = db.labels_
+    #db = DBSCAN(eps=1.2, min_samples=10).fit(features)
+    #cluster_labels = db.labels_
+
+    # HDBSCAN 
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size = 30,
+        min_samples =5,
+        metric="euclidean"
+    ).fit(features)
+
+    cluster_labels = clusterer.labels_
 
     unique, counts = np.unique(cluster_labels, return_counts=True)
     n_noise = int(np.sum(cluster_labels == -1))
@@ -182,7 +192,7 @@ def typiclust_multiround(
         "n_noise": n_noise
     }
     os.makedirs("budget_results/meta", exist_ok=True)
-    np.save("budget_results/meta/dbscan_meta.npy", meta)
+    np.save("budget_results/meta/hdbscan_meta.npy", meta)
 
 
 
@@ -501,30 +511,28 @@ def generate_and_save_typiclust_selections(
         print(f"Saved TypiClust selection for B={B} → budget_results/typiclust_B{B}.npy")
 
 
-def run_DBSCAN(
-        features_path = "TPCRP_Algorithm/modified_budget_results/features.npy",
-        checkpoint_path = "TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_500.pth",
+def run_HDBSCAN(
+        features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
+        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
         budgets=[10,20,40,80],
-        eps=1.2,
-        lambda_=0.01,
-        data_root="./data"
+        lambda_=0.01
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Trained Encoder loading - from the 500 epochs ran 
+    # Load your trained encoder
     encoder = ResNetEncd(base="resnet18", proj_dim=128)
     encoder.load_state_dict(torch.load(checkpoint_path, map_location=device))
-
     encoder = encoder.to(device)
     encoder.eval()
 
+    # Load extracted features
     features = np.load(features_path)
 
-    os.makedirs("TPCRP_Algorithm/modified_budget_results", exist_ok =True)
+    os.makedirs("TPCRP_Algorithm/modified_budget_results", exist_ok=True)
 
     for B in budgets:
         labeled_indices = typiclust_multiround(
-            features = features,
+            features=features,
             initial_labeled=[],
             budget_total=B,
             batch_size_per_round=10,
@@ -532,10 +540,13 @@ def run_DBSCAN(
             random_state=0,
         )
 
-        out_path = f"TPCRP_Algorithm/modified_budget_results/typiclust_DBSCAN_B{B}npy"
+        out_path = f"TPCRP_Algorithm/modified_budget_results/typiclust_HDBSCAN_B{B}.npy"
         np.save(out_path, np.array(labeled_indices))
 
-        print(f"{DBSCAN} Saved for B={B} to {out_path}")
+        print(f"HDBSCAN selection saved for B={B} → {out_path}")
+
+
+
 
 if __name__ == '__main__':
     #generate_and_save_typiclust_selections(budgets=[10], ssl_epochs=5) # For testing before committing to 500 epochs
@@ -546,10 +557,44 @@ if __name__ == '__main__':
     #generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
 
     # To perform strictly only DBSCAN 
-    run_DBSCAN(
+    run_HDBSCAN(
         features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
-        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_500.pth",
+        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
         budgets=[10,20,40,80],
-        eps=1.2,
+        eps=200.0,
         lambda_=0.01
     )
+
+
+# For the Numpy Anaylsis Generation 
+"""
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder.load_state_dict(torch.load(
+        "TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
+        map_location=device
+    ))
+    encoder = encoder.to(device)
+    encoder.eval()
+    base_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            (0.4914, 0.4822, 0.4465),
+            (0.2470, 0.2435, 0.2616)
+        ),
+    ])
+    base_dataset = torchvision.datasets.CIFAR10(
+        root="./data",
+        train=True,
+        download=True,
+        transform=base_transform
+    )
+
+    features = extract_features(encoder, base_dataset, device)
+    np.save("TPCRP_Algorithm/modified_budget_results/features.npy", features)
+
+    print("Saved features.npy")
+
+"""

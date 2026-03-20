@@ -6,6 +6,8 @@ typing
 os 
 
 
+hdbscan
+dbscan
 matplotlib
 seaborn
 pandas
