@@ -164,7 +164,7 @@ def typiclust_multiround(
     lambda_ = 0.01
 
     # DBSCAN Parameters         
-    db = DBSCAN(eps=0.5, min_samples=10).fit(features)
+    db = DBSCAN(eps=1.2, min_samples=10).fit(features)
     cluster_labels = db.labels_
 
     unique, counts = np.unique(cluster_labels, return_counts=True)
@@ -501,7 +501,55 @@ def generate_and_save_typiclust_selections(
         print(f"Saved TypiClust selection for B={B} → budget_results/typiclust_B{B}.npy")
 
 
+def run_DBSCAN(
+        features_path = "TPCRP_Algorithm/modified_budget_results/features.npy",
+        checkpoint_path = "TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_500.pth",
+        budgets=[10,20,40,80],
+        eps=1.2,
+        lambda_=0.01,
+        data_root="./data"
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Trained Encoder loading - from the 500 epochs ran 
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder.load_state_dict(torch.load(checkpoint_path, map_location=device))
+
+    encoder = encoder.to(device)
+    encoder.eval()
+
+    features = np.load(features_path)
+
+    os.makedirs("TPCRP_Algorithm/modified_budget_results", exist_ok =True)
+
+    for B in budgets:
+        labeled_indices = typiclust_multiround(
+            features = features,
+            initial_labeled=[],
+            budget_total=B,
+            batch_size_per_round=10,
+            k_typicality=20,
+            random_state=0,
+        )
+
+        out_path = f"TPCRP_Algorithm/modified_budget_results/typiclust_DBSCAN_B{B}npy"
+        np.save(out_path, np.array(labeled_indices))
+
+        print(f"{DBSCAN} Saved for B={B} to {out_path}")
+
 if __name__ == '__main__':
     #generate_and_save_typiclust_selections(budgets=[10], ssl_epochs=5) # For testing before committing to 500 epochs
     #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
-    generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
+
+
+    # To generate 500 epochs & perform DBSCAN
+    #generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
+
+    # To perform strictly only DBSCAN 
+    run_DBSCAN(
+        features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
+        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_500.pth",
+        budgets=[10,20,40,80],
+        eps=1.2,
+        lambda_=0.01
+    )
