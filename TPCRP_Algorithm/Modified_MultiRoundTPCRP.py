@@ -16,6 +16,8 @@ from sklearn.neighbors import NearestNeighbors
 
 from typing import List, Tuple 
 
+from sklearn.decomposition import PCA
+
 
 #from sklearn.cluster import DBSCAN
 import hdbscan
@@ -30,6 +32,8 @@ torch.backends.cudnn.benchmark = False
 ## END OF MODIFICATION
 
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(SCRIPT_DIR)
 
 
 class ResNetEncd(nn.Module):
@@ -212,8 +216,15 @@ def typiclust_multiround(
 
     while len(labeled) < budget_total:
 
+
+        # DEBUG PRINT
+        print(f"[LOOP] labeled = {len(labeled)}, unlabled = {len(unlabeled)}")
+
         # clusters that DO  [ NOT ]  contain a labeled point
         unique_clusters = np.unique(cluster_labels[valid_mask])
+
+        # DEBUG PRINT
+        print(f"[Clusters] unique_clust = {len(unique_clusters)}")
 
         if unique_clusters.size == 0:
             print("Warning: HDBSCAN found no clusters (all points noise). Increase eps or reduce min_samples.")
@@ -226,7 +237,12 @@ def typiclust_multiround(
             if c != -1:
                 cluster_has_label[c] = True
 
+        # DEBUG PRINT
         uncovered_clusters = [c for c in unique_clusters if not cluster_has_label[c]]
+        print(f"[Uncovrd] uncovered_clusters = {len(uncovered_clusters)}")
+
+        if len(uncovered_clusters) == 0:
+            break 
 
         new_indices = []
 
@@ -433,6 +449,10 @@ def run_pipeline_multiround(
         batch_size=256
     )
 
+    # Reduce dimensionality for easier computation
+    pca = PCA(n_components=50)
+    features = pca.fit_transform(features)
+
     #Multi-round TypiClust
     labeled_indices = typiclust_multiround(
         features=features,
@@ -512,11 +532,15 @@ def generate_and_save_typiclust_selections(
 
 
 def run_HDBSCAN(
-        features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
-        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
+        features_path="modified_budget_results/features.npy",
+        checkpoint_path="modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
         budgets=[10,20,40,80],
         lambda_=0.01
 ):
+    
+
+
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load your trained encoder
@@ -528,7 +552,11 @@ def run_HDBSCAN(
     # Load extracted features
     features = np.load(features_path)
 
-    os.makedirs("TPCRP_Algorithm/modified_budget_results", exist_ok=True)
+    pca = PCA(n_components=50)
+    features = pca.fit_transform(features)
+
+    results_dir = "modified_budget_results/hdbscan_results"
+    os.makedirs(results_dir, exist_ok=True)
 
     for B in budgets:
         labeled_indices = typiclust_multiround(
@@ -540,7 +568,7 @@ def run_HDBSCAN(
             random_state=0,
         )
 
-        out_path = f"TPCRP_Algorithm/modified_budget_results/typiclust_HDBSCAN_B{B}.npy"
+        out_path = f"{results_dir}/typiclust_HDBSCAN_B{B}.npy"
         np.save(out_path, np.array(labeled_indices))
 
         print(f"HDBSCAN selection saved for B={B} → {out_path}")
@@ -558,8 +586,8 @@ if __name__ == '__main__':
 
     # To perform strictly only DBSCAN 
     run_HDBSCAN(
-        features_path="TPCRP_Algorithm/modified_budget_results/features.npy",
-        checkpoint_path="TPCRP_Algorithm/modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
+        features_path="modified_budget_results/features.npy",
+        checkpoint_path="modified_budget_results/ssl_checkpoints/ssl_epoch_480.pth",
         budgets=[10,20,40,80],
         #eps=200.0, # No longer needed for HDBSCAN
         lambda_=0.01
