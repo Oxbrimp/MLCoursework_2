@@ -5,7 +5,6 @@ numpy
 typing
  
 
-
 hdbscan
 dbscan
 matplotlib
