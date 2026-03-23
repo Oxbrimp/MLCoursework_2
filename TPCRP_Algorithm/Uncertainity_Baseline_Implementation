@@ -363,7 +363,7 @@ def run_all_baselines(train_dataset, test_loader, budgets, device):
         selected = []
         for x, idx in unlabeled_loader:
             scores = score_bald(model, x, device)
-            selected.extend(list(zip(idx.numpy(), scores.detatch().cpu().numpy())))
+            selected.extend(list(zip(idx.numpy(), scores.detach().cpu().numpy())))
 
         selected = sorted(selected, key=lambda x: -x[1])[:B]
         selected = [i for i, _ in selected]
@@ -395,7 +395,7 @@ def run_all_baselines(train_dataset, test_loader, budgets, device):
         for x, idx in unlabeled_loader:
             mc_probs = mc_dropout_predict(model, x.to(device))
             scores = score_dbal_from_mc(mc_probs)
-            selected.extend(list(zip(idx.numpy(), scores.cpu().numpy())))
+            selected.extend(list(zip(idx.numpy(), scores.detach().cpu().numpy())))
 
         selected = sorted(selected, key=lambda x: -x[1])[:B]
         selected = [i for i, _ in selected]
