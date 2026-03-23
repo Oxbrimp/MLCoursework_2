@@ -153,7 +153,7 @@ def compute_typicality(features: np.ndarray, k: int = 20) -> np.ndarray:
 
 
 # Multi-Round Typiclust 
-def typiclust_multiround(
+def typiclust_selection(
     features: np.ndarray,
     initial_labeled: List[int],
     budget_total: int,
@@ -407,7 +407,7 @@ def extract_features(
 
 
 
-def run_pipeline_multiround(
+def run_pipeline_selection(
     data_root: str = "./data",
     budget_total: int = 100,
     batch_size_per_round: int = 10,
@@ -454,7 +454,7 @@ def run_pipeline_multiround(
     features = pca.fit_transform(features)
 
     #Multi-round TypiClust
-    labeled_indices = typiclust_multiround(
+    labeled_indices = typiclust_selection(
         features=features,
         initial_labeled=[],
         budget_total=budget_total,
@@ -464,8 +464,8 @@ def run_pipeline_multiround(
     )
 
     os.makedirs("budget_results", exist_ok=True)
-    np.save("budget_results/typiclust_multiround.npy", np.array(labeled_indices))
-    print(f"Selected {len(labeled_indices)} labeled points (multi-round)")
+    np.save("budget_results/typiclust_selection.npy", np.array(labeled_indices))
+    print(f"Selected {len(labeled_indices)} labeled points (single-round)")
 
     return labeled_indices
 
@@ -518,7 +518,7 @@ def generate_and_save_typiclust_selections(
     os.makedirs("budget_results", exist_ok=True)
 
     for B in budgets:
-        labeled_indices = typiclust_multiround(
+        labeled_indices = typiclust_selection(
             features=features,
             initial_labeled=[],
             budget_total=B,
@@ -559,7 +559,7 @@ def run_HDBSCAN(
     os.makedirs(results_dir, exist_ok=True)
 
     for B in budgets:
-        labeled_indices = typiclust_multiround(
+        labeled_indices = typiclust_selection(
             features=features,
             initial_labeled=[],
             budget_total=B,
@@ -578,7 +578,7 @@ def run_HDBSCAN(
 
 if __name__ == '__main__':
     #generate_and_save_typiclust_selections(budgets=[10], ssl_epochs=5) # For testing before committing to 500 epochs
-    #run_pipeline_multiround(ssl_epochs=500) # Run pipeline()
+    run_pipeline_selection(ssl_epochs=500) # Run pipeline()
 
 
     # To generate 500 epochs & perform DBSCAN

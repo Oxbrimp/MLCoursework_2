@@ -2,8 +2,8 @@
 * Original Paper : https://keats.kcl.ac.uk/pluginfile.php/12677542/mod_resource/content/4/Hacohen2022.pdf
 * Non-KEATS Paper Link : https://proceedings.mlr.press/v162/hacohen22a.html
 
-* Multi-Round TPCRP is done in "MultiRoundTPCRP.py" - following the intuition of the research paper
-* Single-Round TPRCRP is done in "SingleRoundTPCRP.py" - Used for simplicity and testing reasons 
+* TPCRP_Algorithm : Is the self-supervised algorithm implementing TPCRP
+* Supervised / Unsupervised TPCRP are variants as shown in the paper 
 
 * Evaluation Metrics Directory : Contains diagram generation relevant to Task 2 
 

@@ -50,6 +50,11 @@ class ResNetEncd(nn.Module):
 
 
 
+
+
+
+
+
 class ConstructiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
         super().__init__()
@@ -133,31 +138,63 @@ def compute_typicality(features: np.ndarray, k: int = 20) -> np.ndarray:
     return typicality
 
 
-def typiclust_initial_pool(
+# Multi-Round Typiclust 
+def typiclust_selection(
     features: np.ndarray,
-    budget: int,
+    initial_labeled: List[int],
+    budget_total: int,
+    batch_size_per_round: int,
     k_typicality: int = 20,
-    random_state: int = 0
+    random_state: int = 0,
 ) -> List[int]:
-    
-    n_samples = features.shape[0]
-    n_clusters = budget
+    N = features.shape[0]
+    rng = np.random.RandomState(random_state)
 
-    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
-    cluster_labels = kmeans.fit_predict(features)
+    labeled = set(initial_labeled)
+    unlabeled = set(range(N)) - labeled
 
     typicality = compute_typicality(features, k=k_typicality)
 
-    selected_indices = []
-    for c in range(n_clusters):
-        cluster_idx = np.where(cluster_labels == c)[0]
-        if len(cluster_idx) == 0:
-            continue
-        cluster_typ = typicality[cluster_idx]
-        best_local = cluster_idx[np.argmax(cluster_typ)]
-        selected_indices.append(int(best_local))
+    while len(labeled) < budget_total:
+        current_L = list(labeled)
+        current_U = list(unlabeled)
 
-    return selected_indices
+        n_clusters = len(current_L) + batch_size_per_round
+        n_clusters = min(n_clusters, len(current_L) + len(current_U))  # safety
+
+        kmeans = KMeans(n_clusters=n_clusters, random_state=rng.randint(1e9))
+        cluster_labels = kmeans.fit_predict(features)
+
+        cluster_has_label = np.zeros(n_clusters, dtype=bool)
+        for idx in current_L:
+            c = cluster_labels[idx]
+            cluster_has_label[c] = True
+
+        uncovered_clusters = [c for c in range(n_clusters) if not cluster_has_label[c]]
+
+        cluster_sizes = {c: np.sum(cluster_labels == c) for c in uncovered_clusters}
+        sorted_clusters = sorted(uncovered_clusters, key=lambda c: -cluster_sizes[c])
+
+        new_indices = []
+        for c in sorted_clusters:
+            if len(labeled) + len(new_indices) >= budget_total:
+                break
+            cluster_idx = np.where(cluster_labels == c)[0]
+            cluster_idx = [i for i in cluster_idx if i in unlabeled]
+            if not cluster_idx:
+                continue
+            cluster_typ = typicality[cluster_idx]
+            best_local = cluster_idx[int(np.argmax(cluster_typ))]
+            new_indices.append(best_local)
+
+        for idx in new_indices:
+            labeled.add(idx)
+            unlabeled.remove(idx)
+
+        if not new_indices:
+            break
+
+    return sorted(labeled)
 
 
 
@@ -188,7 +225,8 @@ def train_self_supervised(
     device: torch.device,
     batch_size: int = 256,
     epochs: int = 200,
-    lr: float = 1e-3
+    lr: float = 1e-3,
+    resume_path : str = None
 ) -> ResNetEncd:
     loader = DataLoader(
         dataset,   # TO DO - ADD DATASET & BATCH_SIZE integration 
@@ -198,10 +236,23 @@ def train_self_supervised(
         drop_last=True
     )
 
+    ssl_losses = []
+
 
     encoder = encoder.to(device)
     loss_fn = ContrastiveNTXent(temperature=0.2).to(device)
     optimizer = torch.optim.Adam(encoder.parameters(), lr=lr)
+
+
+    start_epoch = 0
+    if resume_path is not None and os.path.exists(resume_path):
+        print(f"Resuming SSL training from checkpoint: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device)
+        encoder.load_state_dict(checkpoint["encoder"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        start_epoch = checkpoint["epoch"] + 1
+        print(f"Resumed from epoch {start_epoch}")
+
 
     encoder.train()
     for epoch in range(epochs):
@@ -224,6 +275,16 @@ def train_self_supervised(
         epoch_loss = running_loss / len(loader.dataset)
         print(f"Epoch {epoch+1}/{epochs} - SSL LOSS : {epoch_loss:.4f}")
 
+        ssl_losses.append(epoch_loss)
+
+        # Checkpoint every 40 epochs
+        if (epoch+1)%40 == 0:
+            os.makedirs("budget_results/ssl_checkpoints", exist_ok=True)
+            ckpt_path = f"budget_results/ssl_checkpoints/ssl_epoch_{epoch+1}.pth"
+            torch.save(encoder.state_dict(), ckpt_path)
+            print(f"Checkpoint Saved [ CKLP ] at {epoch+1} -> {ckpt_path}")
+    
+    np.save("budget_results/ssl_loss.npy", np.array(ssl_losses))
     return encoder 
 
 
@@ -257,36 +318,27 @@ def extract_features(
 
 
 
-# SSL = Self Supervised Learning 
-def run_pipeline(
-    data_root : str = "./data", # data folder for data root location 
-    budget : int = 30,
-    ssl_epochs : int = 200
+def run_pipeline_selection(
+    data_root: str = "./data",
+    budget_total: int = 100,
+    batch_size_per_round: int = 10,
+    ssl_epochs: int = 200,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-    # CIFAR-10 Two-Crop SSL
     ssl_transform = TC_Transform()
-    ssl_dataset = TwoCropCIFAR_10(
-        root= data_root,
-        train=True,
-        transform=ssl_transform
-    )
+    ssl_dataset = TwoCropCIFAR_10(root=data_root, train=True, transform=ssl_transform)
 
-
-    # Self-Supervised Encoder 
     encoder = ResNetEncd(base="resnet18", proj_dim=128)
     encoder = train_self_supervised(
-        encoder = encoder,
+        encoder=encoder,
         dataset=ssl_dataset,
         device=device,
         batch_size=256,
         epochs=ssl_epochs,
-        lr=1e-3
+        lr=1e-3,
     )
 
-    # CIFAR -10 Feature Extraction 
     base_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(
@@ -294,7 +346,6 @@ def run_pipeline(
             (0.2470, 0.2435, 0.2616)
         ),
     ])
-
     base_dataset = torchvision.datasets.CIFAR10(
         root=data_root,
         train=True,
@@ -302,7 +353,6 @@ def run_pipeline(
         transform=base_transform
     )
 
-    # Feat. Extraction
     features = extract_features(
         encoder=encoder,
         dataset=base_dataset,
@@ -310,23 +360,85 @@ def run_pipeline(
         batch_size=256
     )
 
-
-    # TypiClust Pool Select
-    selected_indices = typiclust_initial_pool(
+    #Multi-round TypiClust
+    labeled_indices = typiclust_selection(
         features=features,
-        budget=budget,
+        initial_labeled=[],
+        budget_total=budget_total,
+        batch_size_per_round=batch_size_per_round,
         k_typicality=20,
-        random_state=0
+        random_state=0,
     )
 
-    os.makedirs("results", exist_ok=True)
-    np.save("results/typiclust.npy", np.array(selected_indices))
-    print(f"Saved { len(selected_indices)} to results/typiclust.npy")
+    os.makedirs("budget_results", exist_ok=True)
+    np.save("budget_results/typiclust_selection.npy", np.array(labeled_indices))
+    print(f"Selected {len(labeled_indices)} labeled points (single-round)")
+
+    return labeled_indices
+
+
+
+
+def generate_and_save_typiclust_selections(
+        budgets=[10,20,40,80],
+        batch_size_per_round=10,
+        ssl_epochs=200,
+        data_root="./data"
+
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    return selected_indices
+    ssl_transform = TC_Transform()
+    ssl_dataset = TwoCropCIFAR_10(root=data_root, train=True, transform=ssl_transform)
+
+    encoder = ResNetEncd(base="resnet18", proj_dim=128)
+    encoder = train_self_supervised(
+        encoder=encoder,
+        dataset=ssl_dataset,
+        device=device,
+        batch_size=256,
+        epochs=ssl_epochs,
+        lr=1e-3,
+    )
+
+    base_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            (0.4914, 0.4822, 0.4465),
+            (0.2470, 0.2435, 0.2616)
+        ),
+    ])
+    base_dataset = torchvision.datasets.CIFAR10(
+        root=data_root,
+        train=True,
+        download=True,
+        transform=base_transform
+    )
+
+    features = extract_features(
+        encoder=encoder,
+        dataset=base_dataset,
+        device=device,
+        batch_size=256
+    )
+
+    os.makedirs("budget_results", exist_ok=True)
+
+    for B in budgets:
+        labeled_indices = typiclust_selection(
+            features=features,
+            initial_labeled=[],
+            budget_total=B,
+            batch_size_per_round=batch_size_per_round,
+            k_typicality=20,
+            random_state=0,
+        )
+
+        np.save(f"budget_results/typiclust_B{B}.npy", np.array(labeled_indices))
+        print(f"Saved TypiClust selection for B={B} → budget_results/typiclust_B{B}.npy")
 
 
 if __name__ == '__main__':
 
-    # DEV NOTE : UP THE EPOCHS AFTER TESTING 
-    run_pipeline(ssl_epochs=10) # Run pipeline()
+    #run_pipeline_selection(ssl_epochs=500) # Run pipeline()
+    generate_and_save_typiclust_selections(ssl_epochs=500) # reduce due to time constraints 
