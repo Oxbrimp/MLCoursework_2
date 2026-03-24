@@ -4,6 +4,16 @@
 - KEATS link: https://keats.kcl.ac.uk/pluginfile.php/12677542/mod_resource/content/4/Hacohen2022.pdf  
 - Public link: https://proceedings.mlr.press/v162/hacohen22a.html  
 
+
+# Approximate Structure
+* TPCRP_Algorithm : Is the Self-Supervised algorithm implementation of TPCRP
+* Supervised_TPCRP : Is the Supervised algorithm implementation of TPCRP 
+This provides the Fully supervised baseline for my Report
+* Unsupervised_TPCRP : Is the Unsupervised algorithm implementation of TPCRP 
+This provides the unsupervised baseline for my report 
+
+* Uncertainity baselines such as Least Confidence, BALD, DBAL, etc... are implemented via the "Uncertainity_Baseline_Implementation.py"
+
 ---
 
 # Running the Code and Interpreting Results
@@ -22,6 +32,7 @@ pip3 install -r requirements.txt
 ### 3. Running the TPCRP algorithm (self-supervised)
 Execute the main TPCRP script:
 python TPCRP_Algorithm/Modified_MultiRoundTPCRP.py  // alternatively // please execute it via your IDE 
+* If you wish to train the algorithm, please ensure to comment out "run_pipeline" and comment "generate_and_save_typiclust_selections" - whilst having the trained directory in the same directory as the script 
 
 This will:
 
