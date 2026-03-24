@@ -1,6 +1,5 @@
 *env/
 *Unmodified_Output/
-*budget_results/
 *loss_curves*/
 *data*/
 
@@ -8,3 +7,5 @@ Evaluation_Metrics/data*/
 env/
 
 supervised_checkpoints*/
+
+features.npy

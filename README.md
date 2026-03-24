@@ -5,6 +5,11 @@
 - Public link: https://proceedings.mlr.press/v162/hacohen22a.html  
 
 
+
+# Disclaimer Before Use 
+* The notebooks directory has all seperate components available for use - for seameless execution, you will need to ensure the typiclust_B{values} are in the appropriate directory ( TPCRP_Algorithm) - this should b
+
+
 # Approximate Structure
 * TPCRP_Algorithm : Is the Self-Supervised algorithm implementation of TPCRP
 * Supervised_TPCRP : Is the Supervised algorithm implementation of TPCRP 
