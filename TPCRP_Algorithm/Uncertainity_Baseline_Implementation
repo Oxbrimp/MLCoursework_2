@@ -136,23 +136,26 @@ def select_by_uncertainty(model, unlabeled_loader, device, B, scoring_fn):
 
 def plot_baseline_comparison(results_dict, budgets):
     plt.figure(figsize=(8,5))
+
     for method, accs in results_dict.items():
+        # Skip methods with invalid or empty data
+        if accs is None or len(accs) == 0:
+            continue
+        # Skip methods with non-numeric entries
+        if not all(isinstance(a, (int, float, np.floating)) for a in accs if a is not None):
+            continue
+
         plt.plot(budgets, accs, marker="x", label=method)
 
     plt.xlabel("Budget")
     plt.ylabel("Accuracy")
-
     plt.title("Active Learning baseline comparison")
-
     plt.legend()
     plt.grid(True)
-
     plt.tight_layout()
-
-    plt.savefig(f"{method}_curve.png", dpi=300)
     plt.savefig("baseline_comparison.png", dpi=300)
-
     plt.show()
+
 
 
 def evaluate(model, loader, device): 
@@ -211,8 +214,15 @@ def active_learning_round(
     return new_labeled, new_unlabeled, acc
 
 
+def enable_dropout(model):
+    for m in model.modules():
+        if isinstance(m, nn.Dropout):
+            m.train()
+
+
 def mc_dropout_predict(model, x, T=3):
-    model.train()  # keep dropout ON
+    #model.train()  # keep dropout ON
+    enable_dropout(model)
     preds = []
     for _ in range(T):
         logits = model(x)
@@ -240,21 +250,39 @@ def score_dbal_from_mc(mc_probs):
 
 def select_badge(model, unlabeled_loader, device, B):
     model.eval()
-    embeddings = compute_badge_embeddings(model, unlabeled_loader, device)
 
-    # kmeans method 
-    kmeans = KMeans(n_clusters=B, init='k-means++')
-    kmeans.fit(embeddings)
-
-    centers = kmeans.cluster_centers_
-    dists = np.linalg.norm(embeddings[:, None] - centers[None, :], axis=2)
-    selected = np.argmin(dists, axis=0)
-
+    # Collect embeddings AND global indices in the same order
+    all_embeddings = []
     all_indices = []
-    for _, idx in unlabeled_loader:
+
+    for x, idx in unlabeled_loader:
+        x = x.to(device)
+        x.requires_grad = True
+
+        logits = model(x)
+        probs = torch.softmax(logits, dim=1)
+        y_hat = probs.argmax(dim=1)
+
+        loss = F.cross_entropy(logits, y_hat, reduction='sum')
+        model.zero_grad()
+        loss.backward()
+
+        grads = x.grad.view(x.size(0), -1).detach().cpu().numpy()
+        all_embeddings.append(grads)
         all_indices.extend(idx.numpy())
 
-    return [all_indices[i] for i in selected]
+    all_embeddings = np.concatenate(all_embeddings, axis=0)
+
+    # KMeans++ selection
+    kmeans = KMeans(n_clusters=B, init="k-means++").fit(all_embeddings)
+    centers = kmeans.cluster_centers_
+
+    # Compute distances to centers
+    dists = np.linalg.norm(all_embeddings[:, None] - centers[None, :], axis=2)
+    chosen = np.argmin(dists, axis=0)
+
+    return [all_indices[i] for i in chosen]
+
 
 
 def select_random(unlabeled_indices, B):
@@ -291,7 +319,7 @@ def run_all_baselines(train_dataset, test_loader, budgets, device):
         "BALD": [],
         "DBAL": [],
         "Random": [],
-        "TPC-RP": [], 
+        "TPC-RP": [],
         "TPC-DC": []  
     }
 
@@ -408,11 +436,13 @@ def run_all_baselines(train_dataset, test_loader, budgets, device):
         accs.append(acc)
 
     results["DBAL"] = accs
-
+    
     print("\n=== Evaluating TPC-RP selections ===")
     for B in budgets:
         print(f"  -> Evaluating TPC-RP for budget {B}...")
-        indices = np.load(f"typiclust_B{B}.npy")
+
+        # local path 
+        indices = np.load(f"/home/ariag/5CCSAMLF/large_meshupar/TPCRP_Algorithm/unmodified_budget_results/typiclust_B{B}.npy")
         model = SimpleClassifier().to(device)
         acc = evaluate_fixed_selection(model, train_dataset, test_loader, indices, device)
         print(f"     TPC-RP accuracy for budget {B}: {acc:.4f}")
@@ -425,10 +455,15 @@ def run_all_baselines(train_dataset, test_loader, budgets, device):
             model = SimpleClassifier().to(device)
             acc = evaluate_fixed_selection(model, train_dataset, test_loader, indices, device)
             print(f"     TPC-DC accuracy for budget {B}: {acc:.4f}")
-            results["TPC-DC"].append(acc)
+            #results["TPC-DC"].append(acc)
+            results["TPC-DC"].append(None)
         except FileNotFoundError:
             print(f"     No TPC-DC file found for budget {B}.")
             results["TPC-DC"].append(None)
+
+    while len(results["TPC-DC"]) < len(budgets):
+        results["TPC-DC"].append(None)
+
 
     print("\n=== All baselines complete ===")
     return results
