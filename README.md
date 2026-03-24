@@ -35,10 +35,10 @@ In this repository, these directories were manually renamed to:
 - `unmodified_results/`  
 - `modified_results/`  
 
-This allows the Jupyter notebooks to distinguish between the original TPCRP implementation and the modified version used in Task 3.
+This allows the Jupyter notebooks to distinguish between the original TPCRP implementation and the modified version used
 
 ### 4. Running the uncertainty baselines and generating plots
-To reproduce the baseline comparisons and generate the accuracy curves used in Task 2, run:
+To reproduce the baseline comparisons and generate the accuracy curves used, run:
 python TPCRP_Algorithm/Uncertainty_Baseline_Implementation
 
 
@@ -69,9 +69,6 @@ Contains the full self-supervised implementation of TPCRP, including:
 
 Both supervised and unsupervised variants are included, following the structure described in the paper.
 
-### Evaluation_Metrics/
-Contains the plotting and diagram‑generation scripts used for Task 2.
-
 ### unmodified_results/
 Contains:
 
@@ -92,10 +89,6 @@ Contains:
 The modification uses a weighting parameter λ = 0.01 to balance typicality and diversity.
 
 ---
-
-# Modified TPCRP Algorithm (Task 3)
-
-For Task 3, I propose and implement a modification to the original TPCRP selection strategy.
 
 ### Modification Summary
 
