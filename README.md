@@ -7,7 +7,12 @@
 
 
 # Disclaimer Before Use 
-* The notebooks directory has all seperate components available for use - for seameless execution, you will need to ensure the typiclust_B{values} are in the appropriate directory ( TPCRP_Algorithm) - this should b
+* The notebooks directory has all seperate components available for use - for seameless execution, typiclust_B{values} are placed in the appropriate directory (TPCRP_Algorithm)
+* For your *convenience*, I added a *unified_notebook* in root of the repository - please refer to this as the *intended point of entry* for the processing of graphs.
+* To train the algorithms and generate results akin to mine, you can run the TPCRP_Algorithm.py or variants*
+
+
+variants* : Modified_TPCRP_Algorithm, Supervised_TPCRP, Unsupervised_TPCRP
 
 
 # Approximate Structure
