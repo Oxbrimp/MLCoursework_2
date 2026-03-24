@@ -233,4 +233,4 @@ def generate_and_save_typiclust_selections(
 
 if __name__ == '__main__':
     # run_pipeline_unsupervised()
-    generate_and_save_typiclust_selections(epochs=500)
+    generate_and_save_typiclust_selections()

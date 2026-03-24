@@ -11,6 +11,7 @@
 This provides the Fully supervised baseline for my Report
 * Unsupervised_TPCRP : Is the Unsupervised algorithm implementation of TPCRP 
 This provides the unsupervised baseline for my report 
+There are no epochs stated in unsupervised - due to the lack of a training (optimisation) loop
 
 * Uncertainity baselines such as Least Confidence, BALD, DBAL, etc... are implemented via the "Uncertainity_Baseline_Implementation.py"
 
