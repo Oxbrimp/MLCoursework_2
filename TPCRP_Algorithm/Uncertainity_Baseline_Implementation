@@ -51,6 +51,7 @@ test_dataset = torchvision.datasets.CIFAR10(
 
 test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 budgets = [10, 20, 40, 80]
+cumulative_budgets = [10,30,70,150] # For cumulative values 
 
 # Reduced to make computation more efficient 
 class SimpleClassifier(nn.Module):
@@ -135,26 +136,27 @@ def select_by_uncertainty(model, unlabeled_loader, device, B, scoring_fn):
 
 
 def plot_baseline_comparison(results_dict, budgets):
+    cumulative_budgets = np.cumsum(budgets).tolist()
+
     plt.figure(figsize=(8,5))
 
     for method, accs in results_dict.items():
-        # Skip methods with invalid or empty data
         if accs is None or len(accs) == 0:
             continue
-        # Skip methods with non-numeric entries
         if not all(isinstance(a, (int, float, np.floating)) for a in accs if a is not None):
             continue
 
-        plt.plot(budgets, accs, marker="x", label=method)
+        plt.plot(cumulative_budgets, accs, marker="x", label=method)
 
-    plt.xlabel("Budget")
+    plt.xlabel("Cumulative Budget")
     plt.ylabel("Accuracy")
-    plt.title("Active Learning baseline comparison")
+    plt.title("Active Learning Baseline Comparison (Cumulative Budget)")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("baseline_comparison.png", dpi=300)
+    plt.savefig("baseline_comparison_cumulative.png", dpi=300)
     plt.show()
+
 
 
 
