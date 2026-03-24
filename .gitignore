@@ -6,3 +6,5 @@
 
 Evaluation_Metrics/data*/
 env/
+
+supervised_checkpoints*/
