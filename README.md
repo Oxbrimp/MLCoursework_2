@@ -11,6 +11,7 @@
 * For your *convenience*, I added a *unified_notebook* in root of the repository - please refer to this as the *intended point of entry* for the processing of graphs.
 * To train the algorithms and generate results akin to mine, you can run the TPCRP_Algorithm.py or variants*
 
+* The majority of plots and tables in the report are available either in root ( SSL Loss ) or in Evaluation Metrics --> modified / unmodified _ results --> plots
 
 variants* : Modified_TPCRP_Algorithm, Supervised_TPCRP, Unsupervised_TPCRP
 
