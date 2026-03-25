@@ -591,16 +591,10 @@ def run_semi_supervised_pipeline(
 
 
 if __name__ == "__main__":
-    features = np.load("../")
-    generate_typiclust_for_budget(features, 20, "semi_supervised_results")
-    generate_typiclust_for_budget(features, 40, "semi_supervised_results")
-    generate_typiclust_for_budget(features, 80, "semi_supervised_results")
 
-    """
     run_semi_supervised_pipeline(data_root="./data",
                                 budgets=[10, 20, 40, 80],
                                 ssl_epochs=500,  
-                                # Continuation point 
-                                use_pretrained_ssl_checkpoint="/home/ariag/5CCSAMLF/large_meshupar/budget_results/semi_supervised_budget_Results/ssl_encoder.pth",
+                                use_pretrained_ssl_checkpoint=None,
                                 save_dir="semi_supervised_results")
-    """
+    
