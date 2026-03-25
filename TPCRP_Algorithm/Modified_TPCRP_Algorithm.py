@@ -68,7 +68,7 @@ class ResNetEncd(nn.Module):
 
 
 
-
+# Depreciated Use - kept for logging reasons 
 class ConstructiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
         super().__init__()
