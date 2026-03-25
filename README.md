@@ -23,37 +23,123 @@ python TPCRP_Algorithm/Modified_TPCRP_Algorithm.py
 This will produce the feature matrix used for PCA/t-SNE visualisations.
 - placing this generated matrix in the budget_results/modified_budget_results directory will allow for the code to run seamlessly once uncommented 
 
-
-
 variants* : Modified_TPCRP_Algorithm, Supervised_TPCRP, Unsupervised_TPCRP
 
+# Running the Algorithms
 
-# Approximate Structure
-* TPCRP_Algorithm : Is the Self-Supervised algorithm implementation of TPCRP
-* Supervised_TPCRP : Is the Supervised algorithm implementation of TPCRP 
-This provides the Fully supervised baseline for my Report
-* Unsupervised_TPCRP : Is the Unsupervised algorithm implementation of TPCRP 
-This provides the unsupervised baseline for my report 
-There are no epochs stated in unsupervised - due to the lack of a training (optimisation) loop
+This repository provides four main implementations of the TPCRP framework:
 
-* Uncertainity baselines such as Least Confidence, BALD, DBAL, etc... are implemented via the "Uncertainity_Baseline_Implementation.py"
+- Self-Supervised TPCRP
+- Semi-Supervised TPCRP
+- Supervised TPCRP
+- Modified TPCRP (HDBSCAN + diversity penalty)
+
+Each script can be executed directly from the project root using Python 3.
 
 ---
 
-# Running the Code and Interpreting Results
+## 1. Running the Modified TPCRP Algorithm (HDBSCAN Variant)
 
-### 1. Create and activate a virtual environment
+This version includes PCA, HDBSCAN clustering, and the diversity-penalised scoring function.
+
+Command (from project root):
+python3 TPCRP_Algorithm/Modified_TPCRP_Algorithm.py
+
+
+This script will:
+
+- Train the SimCLR encoder (unless disabled)
+- Extract SSL features
+- Apply PCA
+- Run HDBSCAN clustering
+- Perform multi-round TypiClust selection
+- Save results to `budget_results/modified_budget_results/`
+
+If you already have trained weights:
+
+- Comment out `run_pipeline()`
+- Uncomment `generate_and_save_typiclust_selections()`
+- Ensure the trained model directory is present
+
+---
+
+## 2. Running the Self-Supervised TPCRP Algorithm (Original Paper Version)
+
+This reproduces the original TPC-RP method using K-Means clustering.
+
+Command:
+python3 TPCRP_Algorithm/self_supervised_TPCRP_Algorithm.py
+
+
+
+This script will:
+
+- Train the SimCLR encoder for 500 epochs
+- Extract SSL features
+- Compute typicality
+- Run K-Means clustering
+- Perform multi-round TypiClust selection
+- Save results to `budget_results/unmodified_budget_results/`
+
+---
+
+## 3. Running the Semi-Supervised TPCRP Algorithm (FlexMatch Variant)
+
+This version uses FlexMatch to leverage unlabelled data after TypiClust selection.
+
+Command:
+python3 TPCRP_Algorithm/semi_supervised_TPCRP_Algorithm.py
+
+
+
+This script will:
+
+- Load the SSL encoder
+- Apply TypiClust selections
+- Train a FlexMatch classifier using labelled + unlabelled data
+- Save results to `budget_results/semi_supervised_budget_results/`
+
+---
+
+## 4. Running the Fully Supervised TPCRP Algorithm
+
+This provides the supervised baseline used in the report.
+
+Command:
+python3 TPCRP_Algorithm/Supervised_TPCRP.py
+
+
+
+This script will:
+
+- Train a classifier using only the TypiClust-selected labelled set
+- Evaluate accuracy on CIFAR-10
+- Save results to `budget_results/supervised_budget_results/`
+
+---
+
+## Notes for Reproducibility
+
+- All scripts automatically download CIFAR-10 via torchvision.
+- The directory `budget_results/` will be created if it does not exist.
+- For seamless execution, ensure `.npy` selection files are placed in the correct directories.
+
+---
+
+# Running the Code and Interpreting Results - Side Notes : 
+
+###  Create and activate a virtual environment
 python3 -m venv env
 source env/bin/activate
 
 
 
-### 2. Install all required dependencies
+###  Install all required dependencies
 pip3 install -r requirements.txt
 
 
 
-### 3. Running the TPCRP algorithm (self-supervised)
+### Running the TPCRP algorithm (self-supervised)
 Execute the main TPCRP script:
 python TPCRP_Algorithm/Modified_MultiRoundTPCRP.py  // alternatively // please execute it via your IDE 
 * If you wish to train the algorithm, please ensure to comment out "run_pipeline" and comment "generate_and_save_typiclust_selections" - whilst having the trained directory in the same directory as the script 
@@ -90,7 +176,20 @@ This script:
 
 All plots and metrics used in the report are generated through this pipeline.
 
+
 ---
+
+
+# Approximate Structure
+* TPCRP_Algorithm : Is the Self-Supervised algorithm implementation of TPCRP
+* Supervised_TPCRP : Is the Supervised algorithm implementation of TPCRP 
+This provides the Fully supervised baseline for my Report
+* Unsupervised_TPCRP : Is the Unsupervised algorithm implementation of TPCRP 
+This provides the unsupervised baseline for my report 
+There are no epochs stated in unsupervised - due to the lack of a training (optimisation) loop
+
+* Uncertainity baselines such as Least Confidence, BALD, DBAL, etc... are implemented via the "Uncertainity_Baseline_Implementation.py"
+
 
 # Additional Details
 
