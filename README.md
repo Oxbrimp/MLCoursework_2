@@ -91,7 +91,7 @@ This version uses FlexMatch to leverage unlabelled data after TypiClust selectio
 
 Command:
 ```
-python3 TPCRP_Algorithm/semi_supervised_TPCRP_Algorithm.py
+python3 TPCRP_Algorithm/semi_supervised_embeddings_TPCRP.py
 ```
 
 
