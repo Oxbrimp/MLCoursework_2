@@ -386,6 +386,20 @@ def tsne_and_plot(features: np.ndarray, selected_indices: List[int], uncertainti
     plt.show()
 
 
+def generate_typiclust_for_budget(features, B, save_dir):
+    path = os.path.join(save_dir, f"typiclust_HDBSCAN_B{B}.npy")
+    if os.path.exists(path):
+        print(f"Already exists: {path}")
+        return
+    print(f"Generating TypiClust for B={B}")
+    idx = typiclust_hdbscan_selection(features, budget_total=B)
+    np.save(path, np.array(idx))
+    print("Saved:", path)
+
+
+
+
+
 def run_semi_supervised_pipeline(
         data_root: str = "./data",
         budgets: List[int] = BUDGETS,
@@ -397,17 +411,23 @@ def run_semi_supervised_pipeline(
 ):
     os.makedirs(save_dir, exist_ok=True)
 
+        # transforms and datasets (single, correct block)
     base_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465),
                              (0.2470, 0.2435, 0.2616)),
     ])
+
+    # dataset that returns normalized tensors for supervised training/eval
     cifar_train = torchvision.datasets.CIFAR10(root=data_root, train=True, download=True, transform=base_transform)
-    cifar_test = torchvision.datasets.CIFAR10(root=data_root, train=False, download=True, transform=base_transform)
+    cifar_test  = torchvision.datasets.CIFAR10(root=data_root, train=False, download=True, transform=base_transform)
+
+    # dataset that returns raw PIL images for SSL / unlabeled transforms
+    raw_train = torchvision.datasets.CIFAR10(root=data_root, train=True, download=True, transform=None)
 
     ssl_transform = TwoCropTransform()
-    ssl_dataset = torchvision.datasets.CIFAR10(root=data_root, train=True, download=True, transform=None)
 
+    # define TwoCropWrapper BEFORE using it
     class TwoCropWrapper(Dataset):
         def __init__(self, base, transform):
             self.base = base
@@ -417,11 +437,16 @@ def run_semi_supervised_pipeline(
             return len(self.base)
 
         def __getitem__(self, i):
-            img, _ = self.base[i]
+            img, _ = self.base[i]   # raw PIL image
             x1, x2 = self.transform(img)
             return x1, x2, i
 
-    ssl_wrapped = TwoCropWrapper(ssl_dataset, ssl_transform)
+    # wrap the raw dataset for SSL training
+    ssl_wrapped = TwoCropWrapper(raw_train, ssl_transform)
+
+
+
+
     encoder = ResNetEncd(base="resnet18", proj_dim=128).to(DEVICE)
 
     if use_pretrained_ssl_checkpoint and os.path.exists(use_pretrained_ssl_checkpoint):
@@ -478,15 +503,9 @@ def run_semi_supervised_pipeline(
         print(f"Selected {len(selected)} indices")
 
         # Build datasets
-        labeled_ds = LabeledDataset(
-            cifar_train, selected, transform=None
-        )  # CIFAR-10 already returns normalized tensors
+        labeled_ds = LabeledDataset(cifar_train, selected, transform=None)   # keep normalized tensors for supervised head
+        unlabeled_ds = UnlabeledDataset(raw_train, selected, weak_transform=ssl_transform.weak_transform, strong_transform=ssl_transform.strong_transform)
 
-        unlabeled_ds = UnlabeledDataset(
-            cifar_train, selected,
-            weak_transform=ssl_transform.weak_transform,
-            strong_transform=ssl_transform.strong_transform
-        )
 
         labeled_loader = DataLoader(
             labeled_ds, batch_size=BATCH_SIZE_LABELED,
@@ -572,9 +591,16 @@ def run_semi_supervised_pipeline(
 
 
 if __name__ == "__main__":
+    features = np.load("../")
+    generate_typiclust_for_budget(features, 20, "semi_supervised_results")
+    generate_typiclust_for_budget(features, 40, "semi_supervised_results")
+    generate_typiclust_for_budget(features, 80, "semi_supervised_results")
+
+    """
     run_semi_supervised_pipeline(data_root="./data",
                                 budgets=[10, 20, 40, 80],
                                 ssl_epochs=500,  
                                 # Continuation point 
-                                use_pretrained_ssl_checkpoint=None,
+                                use_pretrained_ssl_checkpoint="/home/ariag/5CCSAMLF/large_meshupar/budget_results/semi_supervised_budget_Results/ssl_encoder.pth",
                                 save_dir="semi_supervised_results")
+    """
