@@ -43,8 +43,9 @@ Each script can be executed directly from the project root using Python 3.
 This version includes PCA, HDBSCAN clustering, and the diversity-penalised scoring function.
 
 Command (from project root):
+```
 python3 TPCRP_Algorithm/Modified_TPCRP_Algorithm.py
-
+```
 
 This script will:
 
@@ -68,8 +69,9 @@ If you already have trained weights:
 This reproduces the original TPC-RP method using K-Means clustering.
 
 Command:
+```
 python3 TPCRP_Algorithm/self_supervised_TPCRP_Algorithm.py
-
+```
 
 
 This script will:
@@ -88,8 +90,9 @@ This script will:
 This version uses FlexMatch to leverage unlabelled data after TypiClust selection.
 
 Command:
+```
 python3 TPCRP_Algorithm/semi_supervised_TPCRP_Algorithm.py
-
+```
 
 
 This script will:
@@ -106,8 +109,9 @@ This script will:
 This provides the supervised baseline used in the report.
 
 Command:
+```
 python3 TPCRP_Algorithm/Supervised_TPCRP.py
-
+```
 
 
 This script will:
@@ -129,14 +133,16 @@ This script will:
 # Running the Code and Interpreting Results - Side Notes : 
 
 ###  Create and activate a virtual environment
+```
 python3 -m venv env
 source env/bin/activate
-
+```
 
 
 ###  Install all required dependencies
+```
 pip3 install -r requirements.txt
-
+```
 
 
 ### Running the TPCRP algorithm (self-supervised)
