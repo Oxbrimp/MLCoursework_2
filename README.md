@@ -8,8 +8,9 @@
 
 # Disclaimer Before Use 
 * The notebooks directory has all seperate components available for use - for seameless execution, typiclust_B{values} are placed in the appropriate directory (TPCRP_Algorithm)
-* For your *convenience*, I added a *unified_notebook* in root of the repository - please refer to this as the *intended point of entry* for the processing of graphs.
-* To train the algorithms and generate results akin to mine, you can run the TPCRP_Algorithm.py or variants*
+* For your *convenience*, I added a *unified_notebook* in root of the repository - please refer to this as the **intended point of entry** for the processing of graphs.
+* To train the algorithms and generate results akin to mine, you can run the TPCRP_Algorithm.py or variants stated below 
+* **You are provided** with the **budget_results** for each budget TPCRP (*and resptv. budgets of 10,20,40,80*), this is for the **evaluation and graphing** of data.
 
 * The majority of plots and tables in the report are available either in root ( SSL Loss ) or in Evaluation Metrics --> modified / unmodified _ results --> plots
 
