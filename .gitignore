@@ -9,3 +9,4 @@ env/
 supervised_checkpoints*/
 
 features.npy
+ssl_encoder.pth

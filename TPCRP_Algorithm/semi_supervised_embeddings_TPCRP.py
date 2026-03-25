@@ -59,6 +59,7 @@ class ResNetEncd(nn.Module):
 
 
 
+
 class ContrastiveNTXent(nn.Module):
     def __init__(self, temperature: float = 0.2):
         super().__init__()
@@ -457,33 +458,63 @@ def run_semi_supervised_pipeline(
     features = np.concatenate(all_feats, axis=0)  # shape [N, feat_dim]
 
 
-
-
     for B in budgets:
         print("\n" + "="*40)
         print(f"Budget B={B}")
-        selected = typiclust_hdbscan_selection(features, budget_total=B, k_typicality=20, lambda_=0.01)
+
+        # --- RESUME LOGIC ---
+        selection_path = os.path.join(save_dir, f"typiclust_HDBSCAN_B{B}.npy")
+        if os.path.exists(selection_path):
+            print(f"Found existing selection for B={B}, loading...")
+            selected = np.load(selection_path)
+        else:
+            print(f"No selection found for B={B}, running TypiClust...")
+            selected = typiclust_hdbscan_selection(
+                features, budget_total=B, k_typicality=20, lambda_=0.01
+            )
+            np.save(selection_path, np.array(selected))
+        # ---------------------
+
         print(f"Selected {len(selected)} indices")
 
-        np.save(os.path.join(save_dir, f"typiclust_HDBSCAN_B{B}.npy"), np.array(selected))
+        # Build datasets
+        labeled_ds = LabeledDataset(
+            cifar_train, selected, transform=None
+        )  # CIFAR-10 already returns normalized tensors
 
+        unlabeled_ds = UnlabeledDataset(
+            cifar_train, selected,
+            weak_transform=ssl_transform.weak_transform,
+            strong_transform=ssl_transform.strong_transform
+        )
 
+        labeled_loader = DataLoader(
+            labeled_ds, batch_size=BATCH_SIZE_LABELED,
+            shuffle=True, num_workers=4
+        )
+        unlabeled_loader = DataLoader(
+            unlabeled_ds, batch_size=BATCH_SIZE_UNLABELED,
+            shuffle=True, num_workers=4
+        )
 
-        labeled_ds = LabeledDataset(cifar_train, selected, transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2470, 0.2435, 0.2616)),
-        ]))
-        unlabeled_ds = UnlabeledDataset(cifar_train, selected, weak_transform=ssl_transform.weak_transform,
-                                        strong_transform=ssl_transform.strong_transform)
+        # FlexMatch training
+        fm = FlexMatchLite(
+            encoder=encoder,
+            feat_dim=encoder.feat_dim,
+            num_classes=NUM_CLASSES,
+            device=DEVICE,
+            head_dropout=0.0
+        )
+        head = fm.train(
+            labeled_loader, unlabeled_loader,
+            epochs=30, tau=0.95, lambda_u=1.0, lr=1e-3
+        )
 
-        labeled_loader = DataLoader(labeled_ds, batch_size=BATCH_SIZE_LABELED, shuffle=True, num_workers=4)
-        unlabeled_loader = DataLoader(unlabeled_ds, batch_size=BATCH_SIZE_UNLABELED, shuffle=True, num_workers=4)
+        torch.save(
+            head.state_dict(),
+            os.path.join(save_dir, f"flexmatch_head_B{B}.pth")
+        )
 
-        fm = FlexMatchLite(encoder=encoder, feat_dim=encoder.feat_dim, num_classes=NUM_CLASSES, device=DEVICE, head_dropout=0.0)
-        head = fm.train(labeled_loader, unlabeled_loader, epochs=30, tau=0.95, lambda_u=1.0, lr=1e-3)
-
-        torch.save(head.state_dict(), os.path.join(save_dir, f"flexmatch_head_B{B}.pth"))
 
         test_loader = DataLoader(cifar_test, batch_size=256, shuffle=False, num_workers=4)
         acc = linear_evaluation(encoder, head, test_loader, device=DEVICE)
@@ -544,5 +575,6 @@ if __name__ == "__main__":
     run_semi_supervised_pipeline(data_root="./data",
                                 budgets=[10, 20, 40, 80],
                                 ssl_epochs=500,  
+                                # Continuation point 
                                 use_pretrained_ssl_checkpoint=None,
                                 save_dir="semi_supervised_results")
